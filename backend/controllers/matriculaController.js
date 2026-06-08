@@ -1,25 +1,33 @@
 const matriculaDAO = require('../dao/matriculaDAO');
 const alumnoDAO = require('../dao/alumnoDAO');
+const docenteDAO = require('../dao/docenteDAO');
+const cursoDAO = require('../dao/cursoDAO');
 
 class MatriculaController {
-    async getAll(req, res) {
-        try {
-            const usuario = req.usuario;
-            if (usuario.rol === 'administrativo') {
-                const matriculas = await matriculaDAO.getAll();
-                return res.json(matriculas);
-            } else if (usuario.rol === 'alumno') {
-                const alumno = await alumnoDAO.getByUsuarioId(usuario.id);
-                if (!alumno) return res.json([]);
-                const matriculas = await matriculaDAO.getByAlumno(alumno.id);
-                return res.json(matriculas);
-            } else {
-                return res.json([]);
+   async getAll(req, res) {
+    try {
+        const usuario = req.usuario;
+        let matriculas = [];
+
+        if (usuario.rol === 'administrativo') {
+            matriculas = await matriculaDAO.getAll();
+        } 
+        else if (usuario.rol === 'docente') {
+            const docente = await docenteDAO.getByUsuarioId(usuario.id);
+            if (docente) {
+                // Obtener los cursos del docente (necesitas cursoDAO)
+                const cursos = await cursoDAO.getByDocente(docente.id);
+                const cursosIds = cursos.map(c => c.id);
+                if (cursosIds.length) {
+                    matriculas = await matriculaDAO.getByCursos(cursosIds);
+                }
             }
-        } catch (error) {
-            res.status(500).json({ error: error.message });
         }
+        res.json(matriculas);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
+}
 
     async getById(req, res) {
         try {

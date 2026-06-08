@@ -36,10 +36,12 @@ export default function App() {
         const cargarDatos = async () => {
             if (!usuario) return;
             try {
+                // Cargar cursos siempre
                 const cursosData = await api.getCursos();
                 setCursos(cursosData || []);
                 
                 if (usuario.rol === 'administrativo') {
+                    // Administrador: carga todo
                     const [alumnosData, docentesData, matriculasData, asistenciasData] = await Promise.all([
                         api.getAlumnos().catch(() => []),
                         api.getDocentes().catch(() => []),
@@ -50,8 +52,20 @@ export default function App() {
                     setDocentes(Array.isArray(docentesData) ? docentesData : []);
                     setMatriculas(Array.isArray(matriculasData) ? matriculasData : []);
                     setAsistencias(Array.isArray(asistenciasData) ? asistenciasData : []);
+                } else if (usuario.rol === 'docente') {
+                    // Docente: necesita docentes para encontrar su propio registro
+                    const [docentesData, matriculasData, asistenciasData] = await Promise.all([
+                        api.getDocentes().catch(() => []),
+                        api.getMatriculas().catch(() => []),
+                        api.getAsistencias().catch(() => [])
+                    ]);
+                    setDocentes(Array.isArray(docentesData) ? docentesData : []);
+                    setMatriculas(Array.isArray(matriculasData) ? matriculasData : []);
+                    setAsistencias(Array.isArray(asistenciasData) ? asistenciasData : []);
+                    // Alumnos no es necesario para el docente, pero lo dejamos vacío
+                    setAlumnos([]);
                 } else {
-                    // Para docente y alumno, intentamos cargar datos pero si fallan (403) usamos arrays vacíos
+                    // Alumno: carga sus datos (pero no docentes)
                     const [alumnosData, matriculasData, asistenciasData] = await Promise.all([
                         api.getAlumnos().catch(() => []),
                         api.getMatriculas().catch(() => []),

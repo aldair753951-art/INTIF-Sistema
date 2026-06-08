@@ -45,8 +45,8 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
                 nombre: alumno.nombre || "",
                 dni: alumno.dni || "",
                 codigo: alumno.codigo || "",
-                usuario: "",      // no editable
-                contrasena: ""    // no editable
+                usuario: "",
+                contrasena: ""
             });
         } else {
             setEditando(null);
@@ -73,7 +73,6 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
 
         try {
             if (editando) {
-                // Editar alumno (solo datos personales, no usuario/contraseña)
                 await api.updateAlumno(editando.id, {
                     nombre: form.nombre,
                     dni: form.dni,
@@ -81,7 +80,6 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
                 });
                 setMsg("Alumno actualizado");
             } else {
-                // Crear nuevo alumno con usuario y contraseña
                 if (!form.usuario || !form.contrasena) {
                     setError("Usuario y contraseña son obligatorios para el nuevo alumno.");
                     setCargando(false);
@@ -102,7 +100,8 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
             setForm({ nombre: "", dni: "", codigo: "", usuario: "", contrasena: "" });
             setTimeout(() => setMsg(""), 4000);
         } catch (error) {
-            setError("Error: " + error.message);
+            console.error("Error en guardar:", error);
+            setError("Error: " + (error.message || "Ocurrió un error"));
         } finally {
             setCargando(false);
         }
@@ -110,15 +109,22 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
 
     const eliminar = async (id) => {
         if (!window.confirm("¿Eliminar este alumno? También se eliminarán sus matrículas.")) return;
-        await api.deleteAlumno(id);
-        const nuevosAlumnos = await api.getAlumnos();
-        setAlumnos(nuevosAlumnos);
+        try {
+            await api.deleteAlumno(id);
+            const nuevosAlumnos = await api.getAlumnos();
+            setAlumnos(nuevosAlumnos);
+            setMsg("Alumno eliminado");
+            setTimeout(() => setMsg(""), 3000);
+        } catch (error) {
+            console.error("Error al eliminar:", error);
+            setError("Error al eliminar: " + error.message);
+        }
     };
 
-    const alumnosFiltrados = (alumnos || []).filter(a =>
+    const alumnosFiltrados = Array.isArray(alumnos) ? alumnos.filter(a =>
         !filtro || a.nombre?.toLowerCase().includes(filtro.toLowerCase()) ||
         a.codigo?.includes(filtro) || a.dni?.includes(filtro)
-    );
+    ) : [];
 
     return (
         <div style={{ padding: "2rem" }}>
@@ -133,40 +139,51 @@ export default function GestionAlumnos({ alumnos, setAlumnos }) {
             {msg && <div style={{ background: "#dcfce7", color: "#16a34a", padding: "10px 14px", borderRadius: 8, marginBottom: "1rem" }}>✓ {msg}</div>}
 
             <Card style={{ marginBottom: "1rem" }}>
-                <input value={filtro} onChange={e => setFiltro(e.target.value)} placeholder="Buscar por nombre, código o DNI..." style={{ width: "100%", padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 14 }} />
+                <input 
+                    value={filtro} 
+                    onChange={e => setFiltro(e.target.value)} 
+                    placeholder="Buscar por nombre, código o DNI..." 
+                    style={{ width: "100%", padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 14 }} 
+                />
             </Card>
 
             <Card>
                 {alumnosFiltrados.length === 0 ? (
                     <p style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>No hay alumnos registrados.</p>
                 ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                        <thead>
-                            <tr style={{ borderBottom: "2px solid #f1f5f9" }}>
-                                <th style={{ padding: "8px 10px", textAlign: "left" }}>Código</th>
-                                <th style={{ padding: "8px 10px", textAlign: "left" }}>Nombre</th>
-                                <th style={{ padding: "8px 10px", textAlign: "left" }}>DNI</th>
-                                <th style={{ padding: "8px 10px", textAlign: "left" }}>Estado</th>
-                                <th style={{ padding: "8px 10px", textAlign: "left" }}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {alumnosFiltrados.map((a, i) => (
-                                <tr key={a.id} style={{ borderBottom: "1px solid #f8fafc", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                                    <td style={{ padding: "10px", fontFamily: "monospace" }}>{a.codigo}</td>
-                                    <td style={{ padding: "10px", fontWeight: 500 }}>{a.nombre}</td>
-                                    <td style={{ padding: "10px", color: "#64748b" }}>{a.dni}</td>
-                                    <td style={{ padding: "10px" }}><Badge estado="Activo" /></td>
-                                    <td style={{ padding: "10px" }}>
-                                        <div style={{ display: "flex", gap: "8px" }}>
-                                            <Btn onClick={() => abrirModal(a)} small color="#0f766e" outline>✏️ Editar</Btn>
-                                            <Btn onClick={() => eliminar(a.id)} small color="#dc2626" outline>🗑 Eliminar</Btn>
-                                        </div>
-                                    </td>
+                    <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: "12px", overflow: "hidden", fontSize: "13px" }}>
+                            <thead>
+                                <tr style={{ background: "#0f766e", color: "white" }}>
+                                    <th style={{ padding: "12px", textAlign: "left" }}>Código</th>
+                                    <th style={{ padding: "12px", textAlign: "left" }}>Nombre</th>
+                                    <th style={{ padding: "12px", textAlign: "left" }}>DNI</th>
+                                    <th style={{ padding: "12px", textAlign: "left" }}>Estado</th>
+                                    <th style={{ padding: "12px", textAlign: "center" }}>Acciones</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {alumnosFiltrados.map((a, index) => (
+                                    <tr key={a.id} style={{
+                                        background: index % 2 === 0 ? "#fff" : "#f8fafc",
+                                        borderBottom: "1px solid #e2e8f0",
+                                        transition: "background 0.15s"
+                                    }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = index % 2 === 0 ? "#fff" : "#f8fafc"}>
+                                        <td style={{ padding: "12px", fontFamily: "monospace" }}>{a.codigo}</td>
+                                        <td style={{ padding: "12px", fontWeight: 500 }}>{a.nombre}</td>
+                                        <td style={{ padding: "12px", color: "#64748b" }}>{a.dni}</td>
+                                        <td style={{ padding: "12px" }}><Badge estado="Activo" /></td>
+                                        <td style={{ padding: "12px", textAlign: "center" }}>
+                                            <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                                                <Btn onClick={() => abrirModal(a)} small color="#0f766e" outline>✏️ Editar</Btn>
+                                                <Btn onClick={() => eliminar(a.id)} small color="#dc2626" outline>🗑 Eliminar</Btn>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </Card>
 

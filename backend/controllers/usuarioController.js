@@ -1,5 +1,6 @@
 const usuarioDAO = require('../dao/usuarioDAO');
 const { generarToken } = require('../middlewares/auth');
+const logger = require('../utils/logger');
 
 class UsuarioController {
     async getAll(req, res) {
@@ -57,21 +58,29 @@ class UsuarioController {
     }
 
     async login(req, res) {
-        try {
-            const { usuario, contrasena, rol } = req.body;
-            if (!usuario || !contrasena || !rol) {
-                return res.status(400).json({ mensaje: 'Usuario, contraseña y rol son obligatorios' });
-            }
-            const user = await usuarioDAO.login(usuario, contrasena, rol);
-            if (!user) {
-                return res.status(401).json({ mensaje: 'Credenciales inválidas' });
-            }
-            const token = generarToken(user);
-            res.json({ mensaje: 'Login exitoso', token, usuario: user });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
+    try {
+        const { usuario, contrasena, rol } = req.body;
+
+        if (!usuario || !contrasena || !rol) {
+            logger.warn(`Intento de login sin datos completos: faltan campos`);
+            return res.status(400).json({ mensaje: 'Usuario, contraseña y rol son obligatorios' });
         }
+
+        const user = await usuarioDAO.login(usuario, contrasena, rol);
+
+        if (!user) {
+            logger.warn(`Intento de login fallido para usuario: ${usuario} (rol: ${rol})`);
+            return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+        }
+
+        const token = generarToken(user);
+        logger.info(`Inicio de sesión exitoso: ${usuario} (rol: ${rol}, id: ${user.id})`);
+        res.json({ mensaje: 'Login exitoso', token, usuario: user });
+    } catch (error) {
+        logger.error(`Error en login: ${error.message}`);
+        res.status(500).json({ error: error.message });
     }
+}
 
     async cambiarPassword(req, res) {
         try {

@@ -1,6 +1,7 @@
 const alumnoDAO = require('../dao/alumnoDAO');
 const usuarioDAO = require('../dao/usuarioDAO');
 const matriculaDAO = require('../dao/matriculaDAO');
+const logger = require('../utils/logger');
 
 class AlumnoController {
     async getAll(req, res) {
@@ -37,50 +38,56 @@ class AlumnoController {
 
     // Crear alumno (con usuario automático)
     async create(req, res) {
-        try {
-            const { nombre, dni, codigo, programa, usuario, contrasena, curso_id } = req.body;
+    try {
+        const { nombre, dni, codigo, programa, usuario, contrasena, curso_id } = req.body;
 
-            // Validaciones
-            if (!nombre || !dni || !codigo || !usuario || !contrasena) {
-                return res.status(400).json({ mensaje: 'Faltan datos: nombre, dni, código, usuario y contraseña son obligatorios' });
-            }
-            if (dni.length !== 8) {
-                return res.status(400).json({ mensaje: 'El DNI debe tener 8 dígitos' });
-            }
-
-            // 1. Crear usuario (rol = 'alumno')
-            const nuevoUsuario = await usuarioDAO.create({
-                usuario,
-                contrasena,
-                nombre,
-                rol: 'alumno'
-            });
-
-            // 2. Crear alumno vinculado al usuario_id
-            const nuevoAlumno = await alumnoDAO.create({
-                nombre,
-                dni,
-                codigo,
-                programa: programa || null,
-                usuario_id: nuevoUsuario.id
-            });
-
-            // 3. (Opcional) Matricularlo en un curso si se envió curso_id
-            if (curso_id) {
-                await matriculaDAO.create({
-                    alumno_id: nuevoAlumno.id,
-                    curso_id: Number(curso_id),
-                    fecha: new Date().toISOString().split('T')[0],
-                    estado: 'Activo'
-                });
-            }
-
-            res.status(201).json({ mensaje: 'Alumno y usuario creados', alumno: nuevoAlumno });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: error.message });
+        // Validaciones
+        if (!nombre || !dni || !codigo || !usuario || !contrasena) {
+            logger.warn(`Intento de crear alumno sin datos completos: faltan campos`);
+            return res.status(400).json({ mensaje: 'Faltan datos: nombre, dni, código, usuario y contraseña son obligatorios' });
         }
+        if (dni.length !== 8) {
+            logger.warn(`Intento de crear alumno con DNI inválido: ${dni}`);
+            return res.status(400).json({ mensaje: 'El DNI debe tener 8 dígitos' });
+        }
+
+        // 1. Crear usuario (rol = 'alumno')
+        const nuevoUsuario = await usuarioDAO.create({
+            usuario,
+            contrasena,
+            nombre,
+            rol: 'alumno'
+        });
+        logger.info(`Usuario creado para alumno: ${usuario} (id: ${nuevoUsuario.id})`);
+
+        // 2. Crear alumno vinculado al usuario_id
+        const nuevoAlumno = await alumnoDAO.create({
+            nombre,
+            dni,
+            codigo,
+            programa: programa || null,
+            usuario_id: nuevoUsuario.id
+        });
+        logger.info(`Alumno creado: ${nombre} (id: ${nuevoAlumno.id})`);
+
+        // 3. (Opcional) Matricularlo en un curso si se envió curso_id
+        if (curso_id) {
+            await matriculaDAO.create({
+                alumno_id: nuevoAlumno.id,
+                curso_id: Number(curso_id),
+                fecha: new Date().toISOString().split('T')[0],
+                estado: 'Activo'
+            });
+            logger.info(`Alumno ${nombre} matriculado en curso ${curso_id}`);
+        }
+
+        res.status(201).json({ mensaje: 'Alumno y usuario creados', alumno: nuevoAlumno });
+    } catch (error) {
+        logger.error(`Error al crear alumno: ${error.message}`);
+        console.error(error);
+        res.status(500).json({ error: error.message });
     }
+}
 
     // Actualizar alumno (solo datos personales, no usuario)
     async update(req, res) {

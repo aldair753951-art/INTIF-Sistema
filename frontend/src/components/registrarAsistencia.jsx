@@ -3,14 +3,12 @@ import { Card, Btn } from './index';
 import { api } from '../services/api';
 
 export default function RegistrarAsistencia({ usuario, cursos, alumnos, matriculas, asistencias, setAsistencias }) {
-    // Asegurar que los datos sean arrays
     const cursosArray = Array.isArray(cursos) ? cursos : [];
     const alumnosArray = Array.isArray(alumnos) ? alumnos : [];
     const matriculasArray = Array.isArray(matriculas) ? matriculas : [];
-    const asistenciasArray = Array.isArray(asistencias) ? asistencias : [];
 
-    // Filtrar cursos del docente
-    const misCursos = cursosArray.filter(c => c.docente_id === usuario?.id);
+    // Filtrar cursos del docente (usando docente_id)
+    const misCursos = cursosArray.filter(c => Number(c.docente_id) === Number(usuario?.id));
     const [cursoSel, setCursoSel] = useState(misCursos[0]?.id || "");
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [estados, setEstados] = useState({});
@@ -20,9 +18,7 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
     // Obtener alumnos del curso seleccionado
     const alumnosCurso = useMemo(() => {
         if (!cursoSel) return [];
-        const ids = matriculasArray
-            .filter(m => m.curso_id === Number(cursoSel))
-            .map(m => m.alumno_id);
+        const ids = matriculasArray.filter(m => m.curso_id === Number(cursoSel)).map(m => m.alumno_id);
         return alumnosArray.filter(a => ids.includes(a.id));
     }, [cursoSel, matriculasArray, alumnosArray]);
 
@@ -37,7 +33,6 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
             alert("No hay alumnos en este curso");
             return;
         }
-        
         setCargando(true);
         const nuevosRegistros = alumnosCurso.map(a => ({
             alumno_id: a.id,
@@ -46,7 +41,6 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
             estado: estados[a.id] || "Asistió",
             observacion: ""
         }));
-
         try {
             const resultado = await api.registrarAsistencias(nuevosRegistros);
             if (resultado.asistenciasGuardadas) {
@@ -54,28 +48,24 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
                 setAsistencias(nuevasAsistencias);
                 setGuardado(true);
                 setTimeout(() => setGuardado(false), 3000);
-                // Limpiar estados después de guardar
                 setEstados({});
             }
         } catch (error) {
-            console.error("Error al guardar:", error);
-            alert("Error al guardar asistencias: " + error.message);
+            console.error(error);
+            alert("Error al guardar asistencias");
         } finally {
             setCargando(false);
         }
     };
 
     const presentes = alumnosCurso.filter(a => (estados[a.id] || "Asistió") === "Asistió").length;
-
     const colorEstado = { "Asistió": "#16a34a", "Falta": "#dc2626", "Tardanza": "#d97706", "Justificado": "#2563eb" };
 
     if (misCursos.length === 0) {
         return (
             <div style={{ padding: "2rem" }}>
                 <Card>
-                    <p style={{ textAlign: "center", color: "#64748b" }}>
-                        No tienes cursos asignados. Contacta al administrador.
-                    </p>
+                    <p style={{ textAlign: "center", color: "#64748b" }}>No tienes cursos asignados. Contacta al administrador.</p>
                 </Card>
             </div>
         );
@@ -89,9 +79,9 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Curso</label>
-                        <select 
-                            value={cursoSel} 
-                            onChange={e => { setCursoSel(e.target.value); setEstados({}); }} 
+                        <select
+                            value={cursoSel}
+                            onChange={e => { setCursoSel(e.target.value); setEstados({}); }}
                             style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 14 }}
                         >
                             {misCursos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -99,11 +89,11 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
                     </div>
                     <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fecha</label>
-                        <input 
-                            type="date" 
-                            value={fecha} 
-                            onChange={e => setFecha(e.target.value)} 
-                            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 14 }} 
+                        <input
+                            type="date"
+                            value={fecha}
+                            onChange={e => setFecha(e.target.value)}
+                            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 14 }}
                         />
                     </div>
                 </div>
@@ -143,12 +133,12 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
                                         <td style={{ padding: "10px", color: "#64748b" }}>{a.codigo}</td>
                                         {["Asistió", "Falta", "Tardanza", "Justificado"].map(op => (
                                             <td key={op} style={{ padding: "10px", textAlign: "center" }}>
-                                                <input 
-                                                    type="radio" 
-                                                    name={`est-${a.id}`} 
-                                                    checked={est === op} 
-                                                    onChange={() => setEstados(prev => ({ ...prev, [a.id]: op }))} 
-                                                    style={{ accentColor: colorEstado[op], width: 16, height: 16 }} 
+                                                <input
+                                                    type="radio"
+                                                    name={`est-${a.id}`}
+                                                    checked={est === op}
+                                                    onChange={() => setEstados(prev => ({ ...prev, [a.id]: op }))}
+                                                    style={{ accentColor: colorEstado[op], width: 16, height: 16 }}
                                                 />
                                             </td>
                                         ))}
@@ -160,18 +150,14 @@ export default function RegistrarAsistencia({ usuario, cursos, alumnos, matricul
 
                     <div style={{ marginTop: "1.25rem", display: "flex", justifyContent: "flex-end", gap: 12, alignItems: "center" }}>
                         {guardado && <span style={{ color: "#16a34a", fontSize: 14, fontWeight: 600 }}>✓ Asistencia guardada</span>}
-                        <Btn onClick={guardar} color="#7c3aed" disabled={cargando}>
-                            {cargando ? "Guardando..." : "💾 Guardar asistencia"}
-                        </Btn>
+                        <Btn onClick={guardar} color="#7c3aed" disabled={cargando}>{cargando ? "Guardando..." : "💾 Guardar asistencia"}</Btn>
                     </div>
                 </Card>
             )}
 
             {alumnosCurso.length === 0 && cursoSel && (
                 <Card>
-                    <p style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>
-                        No hay alumnos matriculados en este curso.
-                    </p>
+                    <p style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>No hay alumnos matriculados en este curso.</p>
                 </Card>
             )}
         </div>

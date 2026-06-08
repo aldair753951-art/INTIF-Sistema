@@ -1,13 +1,17 @@
-export const StatCard = ({ label, value, color = "#1e40af", icon }) => (
+export const StatCard = ({ label, value, icon, color = "#0f766e" }) => (
     <div style={{
-        background: "#f8fafc",
-        borderRadius: 10,
-        padding: "1rem 1.25rem",
-        border: "1px solid #e2e8f0",
-        textAlign: "center"
-    }}>
-        <div style={{ fontSize: 28, marginBottom: 4 }}>{icon}</div>
-        <div style={{ fontSize: 26, fontWeight: 700, color }}>{value}</div>
-        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{label}</div>
+        background: "#fff",
+        borderRadius: "16px",
+        padding: "1.25rem",
+        textAlign: "center",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+        transition: "transform 0.2s",
+        cursor: "default"
+    }}
+    onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"}
+    onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}>
+        <div style={{ fontSize: "2rem", marginBottom: "8px" }}>{icon}</div>
+        <div style={{ fontSize: "1.8rem", fontWeight: "bold", color }}>{value}</div>
+        <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "4px" }}>{label}</div>
     </div>
 );

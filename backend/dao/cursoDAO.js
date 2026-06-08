@@ -40,18 +40,12 @@ class CursoDAO {
 
     // Obtener cursos por docente
     async getByDocente(docenteId) {
-        const pool = await getConnection();
-        const result = await pool.request()
-            .input('docenteId', sql.Int, docenteId)
-            .query(`
-                SELECT c.*, d.nombre as docente_nombre
-                FROM TBL_CURSO c
-                LEFT JOIN TBL_DOCENTE d ON c.docente_id = d.id
-                WHERE c.docente_id = @docenteId
-                ORDER BY c.nombre
-            `);
-        return result.recordset;
-    }
+    const pool = await getConnection();
+    const result = await pool.request()
+        .input('docenteId', sql.Int, docenteId)
+        .query('SELECT * FROM TBL_CURSO WHERE docente_id = @docenteId');
+    return result.recordset;
+}
 
     // Obtener cursos por alumno
     async getByAlumno(alumnoId) {

@@ -1,45 +1,8 @@
 const docenteDAO = require('../dao/docenteDAO');
+const usuarioDAO = require('../dao/usuarioDAO');
+const logger = require('../utils/logger'); // al inicio del archivo
 
 class DocenteController {
-
-    async create(req, res) {
-        try {
-            const { nombre, dni, especialidad, telefono, email, usuario, contrasena } = req.body;
-
-            // Validaciones
-            if (!nombre || !dni) {
-                return res.status(400).json({ mensaje: 'Nombre y DNI son obligatorios' });
-            }
-            if (!usuario || !contrasena) {
-                return res.status(400).json({ mensaje: 'Usuario y contraseña son obligatorios para el docente' });
-            }
-
-            // 1. Crear el usuario en TBL_USUARIO (rol = 'docente')
-            const nuevoUsuario = await usuarioDAO.create({
-                usuario: usuario,
-                contrasena: contrasena,
-                nombre: nombre,
-                rol: 'docente'
-            });
-
-            // 2. Crear el docente en TBL_DOCENTE con el mismo ID del usuario
-            const nuevoDocente = await docenteDAO.create({
-                id: nuevoUsuario.id,   // forzamos el mismo ID
-                nombre: nombre,
-                dni: dni,
-                especialidad: especialidad,
-                telefono: telefono,
-                email: email,
-                estado: 'Activo'
-            });
-
-            res.status(201).json({ mensaje: 'Docente y usuario creados correctamente', docente: nuevoDocente });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: error.message });
-        }
-    }
-    
     async getAll(req, res) {
         try {
             const docentes = await docenteDAO.getAll();
@@ -61,32 +24,50 @@ class DocenteController {
     }
 
     async create(req, res) {
-        try {
-            const { nombre, dni, especialidad, telefono, email } = req.body;
-            if (!nombre || !dni) {
-                return res.status(400).json({ mensaje: 'Nombre y DNI son obligatorios' });
-            }
-            if (dni.length !== 8) {
-                return res.status(400).json({ mensaje: 'El DNI debe tener 8 dígitos' });
-            }
-            
-            const existe = await docenteDAO.getByDni(dni);
-            if (existe) return res.status(409).json({ mensaje: 'Ya existe un docente con ese DNI' });
-            
-            const nuevoDocente = await docenteDAO.create({ nombre, dni, especialidad, telefono, email });
-            res.status(201).json({ mensaje: 'Docente registrado', docente: nuevoDocente });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
+    try {
+        const { nombre, dni, especialidad, telefono, email, usuario, contrasena } = req.body;
+
+        if (!nombre || !dni || !usuario || !contrasena) {
+            logger.warn(`Intento de crear docente sin datos completos`);
+            return res.status(400).json({ mensaje: 'Faltan datos: nombre, dni, usuario y contraseña son obligatorios' });
         }
+        if (dni.length !== 8) {
+            logger.warn(`Intento de crear docente con DNI inválido: ${dni}`);
+            return res.status(400).json({ mensaje: 'El DNI debe tener 8 dígitos' });
+        }
+
+        const nuevoUsuario = await usuarioDAO.create({
+            usuario,
+            contrasena,
+            nombre,
+            rol: 'docente'
+        });
+        logger.info(`Usuario creado para docente: ${usuario} (id: ${nuevoUsuario.id})`);
+
+        const nuevoDocente = await docenteDAO.create({
+            nombre,
+            dni,
+            especialidad: especialidad || null,
+            telefono: telefono || null,
+            email: email || null,
+            usuario_id: nuevoUsuario.id,
+            estado: 'Activo'
+        });
+        logger.info(`Docente creado: ${nombre} (id: ${nuevoDocente.id})`);
+
+        res.status(201).json({ mensaje: 'Docente y usuario creados', docente: nuevoDocente });
+    } catch (error) {
+        logger.error(`Error al crear docente: ${error.message}`);
+        console.error(error);
+        res.status(500).json({ error: error.message });
     }
+}
 
     async update(req, res) {
         try {
             const { id } = req.params;
-            const existe = await docenteDAO.getById(id);
-            if (!existe) return res.status(404).json({ mensaje: 'Docente no encontrado' });
-            
-            const actualizado = await docenteDAO.update(id, req.body);
+            const { nombre, dni, especialidad, telefono, email, estado } = req.body;
+            const actualizado = await docenteDAO.update(id, { nombre, dni, especialidad, telefono, email, estado });
             res.json({ mensaje: 'Docente actualizado', docente: actualizado });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -96,11 +77,11 @@ class DocenteController {
     async delete(req, res) {
         try {
             const { id } = req.params;
-            const existe = await docenteDAO.getById(id);
-            if (!existe) return res.status(404).json({ mensaje: 'Docente no encontrado' });
-            
+            const docente = await docenteDAO.getById(id);
+            if (!docente) return res.status(404).json({ mensaje: 'Docente no encontrado' });
+            if (docente.usuario_id) await usuarioDAO.delete(docente.usuario_id);
             await docenteDAO.delete(id);
-            res.json({ mensaje: 'Docente eliminado' });
+            res.json({ mensaje: 'Docente y usuario eliminados' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -108,7 +89,7 @@ class DocenteController {
 
     async getCursos(req, res) {
         try {
-            const { id } = req.params;
+            const { id } = req.params; // id del docente (TBL_DOCENTE.id)
             const cursos = await docenteDAO.getCursos(id);
             res.json(cursos);
         } catch (error) {

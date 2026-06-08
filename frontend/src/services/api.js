@@ -265,5 +265,27 @@ export const api = {
     async getEstadisticas() {
         const response = await fetchWithAuth(`${API_URL}/asistencias/estadisticas`);
         return response.json();
+    },
+
+    async createSolicitud(data) {
+    const response = await fetchWithAuth(`${API_URL}/solicitudes`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+        return response.json();
+    },
+    
+    // Solicitudes de recuperación
+    async getSolicitudesDocente() {
+    const response = await fetchWithAuth(`${API_URL}/solicitudes/docente`);
+    return response.json();
+    },
+    
+    async updateSolicitud(id, data) {
+    const response = await fetchWithAuth(`${API_URL}/solicitudes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+        });
+        return response.json();
     }
 };

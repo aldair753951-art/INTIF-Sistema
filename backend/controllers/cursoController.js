@@ -1,19 +1,27 @@
 const cursoDAO = require('../dao/cursoDAO');
+const docenteDAO = require('../dao/docenteDAO');
 
 class CursoController {
     async getAll(req, res) {
-    try {
-        let cursos = await cursoDAO.getAll();
-        // Fuerza conversión por si algún array se cuela
-        cursos = cursos.map(curso => ({
-            ...curso,
-            docente_id: curso.docente_id && !Array.isArray(curso.docente_id) ? Number(curso.docente_id) : null
-        }));
-        res.json(cursos);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+        try {
+            const usuario = req.usuario;
+            let cursos = [];
+
+            if (usuario.rol === 'administrativo') {
+                cursos = await cursoDAO.getAll();
+            } 
+            else if (usuario.rol === 'docente') {
+                const docente = await docenteDAO.getByUsuarioId(usuario.id);
+                if (docente) {
+                    cursos = await cursoDAO.getByDocente(docente.id);
+                }
+            }
+            // Para alumno, podrías devolver cursos de sus matrículas (opcional)
+            res.json(cursos);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
     }
-}
 
     async getById(req, res) {
         try {
@@ -62,27 +70,9 @@ async update(req, res) {
     try {
         const { id } = req.params;
         const { nombre, docente_id, horario, dias, capacidad } = req.body;
-
-        const existe = await cursoDAO.getById(id);
-        if (!existe) {
-            return res.status(404).json({ mensaje: 'Curso no encontrado' });
-        }
-
-        // Actualizar
-        const actualizado = await cursoDAO.update(id, {
-            nombre,
-            docente_id: docente_id || null,   // Asegurar que sea null si no viene
-            horario,
-            dias,
-            capacidad
-        });
-
-        // Obtener el curso actualizado (con el nuevo docente_id)
-        const cursoActualizado = await cursoDAO.getById(id);
-
-        res.json({ mensaje: 'Curso actualizado', curso: cursoActualizado });
+        const actualizado = await cursoDAO.update(id, { nombre, docente_id, horario, dias, capacidad });
+        res.json({ mensaje: 'Curso actualizado', curso: actualizado });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: error.message });
     }
 }

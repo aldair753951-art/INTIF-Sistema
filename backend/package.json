@@ -12,7 +12,9 @@
     "cors": "^2.8.6",
     "express": "^4.22.2",
     "jsonwebtoken": "^9.0.3",
-    "mssql": "^10.0.4"
+    "morgan": "^1.11.0",
+    "mssql": "^10.0.4",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

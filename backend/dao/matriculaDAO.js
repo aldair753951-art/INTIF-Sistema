@@ -45,19 +45,18 @@ class MatriculaDAO {
     }
 
     // Obtener matrículas por curso
-    async getByCurso(cursoId) {
-        const pool = await getConnection();
-        const result = await pool.request()
-            .input('cursoId', sql.Int, cursoId)
-            .query(`
-                SELECT m.*, a.nombre as alumno_nombre, a.codigo
-                FROM TBL_MATRICULA m
-                JOIN TBL_ALUMNO a ON m.alumno_id = a.id
-                WHERE m.curso_id = @cursoId AND m.estado = 'Activo'
-                ORDER BY a.nombre
-            `);
-        return result.recordset;
-    }
+    async getByCursos(cursosIds) {
+    if (!cursosIds.length) return [];
+    const pool = await getConnection();
+    // Crear parámetros dinámicos
+    const request = pool.request();
+    const inClause = cursosIds.map((_, i) => `@id${i}`).join(',');
+    cursosIds.forEach((id, i) => {
+        request.input(`id${i}`, sql.Int, id);
+    });
+    const result = await request.query(`SELECT * FROM TBL_MATRICULA WHERE curso_id IN (${inClause})`);
+    return result.recordset;
+}
 
     // Verificar si ya existe matrícula
     async existeMatricula(alumnoId, cursoId) {

@@ -1,92 +1,151 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Btn } from './index';
+import { api } from '../services/api';
 
 export default function SolicitarRecuperacion({ usuario, alumnos, asistencias, cursos }) {
-    const alumno = alumnos.find(a => a.usuario_id === usuario?.id);
+    const [alumno, setAlumno] = useState(null);
     const [cursoSel, setCursoSel] = useState("");
     const [fechaSel, setFechaSel] = useState("");
     const [motivo, setMotivo] = useState("");
     const [enviado, setEnviado] = useState(false);
     const [error, setError] = useState("");
+    const [cargando, setCargando] = useState(false);
+    const [faltas, setFaltas] = useState([]);
 
-    if (!alumno) return <div style={{ padding: "2rem" }}>No se encontró perfil de alumno.</div>;
+    useEffect(() => {
+        // Buscar el alumno a partir del usuario logueado
+        const alumnoEncontrado = (alumnos || []).find(a => a.usuario_id === usuario?.id);
+        setAlumno(alumnoEncontrado);
 
-    // Obtener faltas del alumno (estado "Falta")
-    const faltas = asistencias.filter(a => a.alumno_id === alumno.id && a.estado === "Falta");
-    const cursosConFaltas = [...new Set(faltas.map(f => f.curso_id))];
-    const cursosList = cursos.filter(c => cursosConFaltas.includes(c.id));
+        if (alumnoEncontrado) {
+            // Filtrar las asistencias del alumno que sean "Falta"
+            const misFaltas = (asistencias || []).filter(
+                a => a.alumno_id === alumnoEncontrado.id && a.estado === "Falta"
+            );
+            setFaltas(misFaltas);
+        }
+    }, [usuario, alumnos, asistencias]);
 
-    const handleSubmit = () => {
-        if (!cursoSel || !fechaSel || !motivo) {
+    const handleSubmit = async () => {
+        setError("");
+        if (!cursoSel || !fechaSel || !motivo.trim()) {
             setError("Todos los campos son obligatorios.");
             return;
         }
-        // Aquí iría la llamada al backend para guardar la solicitud
-        console.log({ alumno_id: alumno.id, curso_id: cursoSel, fecha: fechaSel, motivo });
-        setEnviado(true);
-        setTimeout(() => {
-            setEnviado(false);
+
+        setCargando(true);
+        try {
+            await api.createSolicitud({
+                curso_id: parseInt(cursoSel),
+                fecha_clase: fechaSel,
+                motivo: motivo.trim(),
+                evidencia: null
+            });
+            setEnviado(true);
+            // Limpiar formulario después de enviar
             setCursoSel("");
             setFechaSel("");
             setMotivo("");
-        }, 3000);
+            setTimeout(() => setEnviado(false), 3000);
+        } catch (err) {
+            console.error("Error al enviar solicitud:", err);
+            setError(err.message || "No se pudo enviar la solicitud. Intente más tarde.");
+        } finally {
+            setCargando(false);
+        }
     };
 
-    const fechasDisponibles = faltas
-        .filter(f => !cursoSel || f.curso_id === Number(cursoSel))
-        .map(f => f.fecha);
+    if (!alumno) {
+        return (
+            <div style={{ padding: "2rem" }}>
+                <Card>
+                    <p>No se encontró perfil de alumno. Contacta al administrador.</p>
+                </Card>
+            </div>
+        );
+    }
+
+    // Obtener cursos únicos a partir de las faltas (para el selector)
+    const cursosUnicos = [];
+    const cursosMap = new Map();
+    faltas.forEach(falta => {
+        const curso = (cursos || []).find(c => c.id === falta.curso_id);
+        if (curso && !cursosMap.has(curso.id)) {
+            cursosMap.set(curso.id, curso);
+            cursosUnicos.push(curso);
+        }
+    });
+
+    const faltasDelCurso = faltas.filter(f => f.curso_id === parseInt(cursoSel));
 
     return (
         <div style={{ padding: "2rem" }}>
-            <h2>Justificar falta</h2>
-            <p>Selecciona la clase que faltaste y justifica tu inasistencia.</p>
-
+            <h2 style={{ marginBottom: "1rem" }}>📩 Justificar falta</h2>
             <Card>
-                {cursosList.length === 0 ? (
-                    <p>No tienes faltas registradas.</p>
+                {faltas.length === 0 ? (
+                    <p style={{ textAlign: "center", color: "#64748b" }}>
+                        No tienes faltas registradas. ¡Sigue así!
+                    </p>
                 ) : (
                     <>
                         <div style={{ marginBottom: "1rem" }}>
-                            <label>Curso</label>
+                            <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Curso</label>
                             <select
                                 value={cursoSel}
-                                onChange={e => setCursoSel(e.target.value)}
-                                style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
+                                onChange={(e) => {
+                                    setCursoSel(e.target.value);
+                                    setFechaSel(""); // resetear fecha al cambiar curso
+                                }}
+                                style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }}
                             >
                                 <option value="">-- Seleccionar curso --</option>
-                                {cursosList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                {cursosUnicos.map(c => (
+                                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
                             </select>
                         </div>
 
                         <div style={{ marginBottom: "1rem" }}>
-                            <label>Fecha de la falta</label>
+                            <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Fecha de la falta</label>
                             <select
                                 value={fechaSel}
-                                onChange={e => setFechaSel(e.target.value)}
-                                style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
+                                onChange={(e) => setFechaSel(e.target.value)}
                                 disabled={!cursoSel}
+                                style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc" }}
                             >
                                 <option value="">-- Seleccionar fecha --</option>
-                                {fechasDisponibles.map(f => <option key={f} value={f}>{f}</option>)}
+                                {faltasDelCurso.map(f => (
+                                    <option key={f.fecha} value={f.fecha}>{f.fecha}</option>
+                                ))}
                             </select>
                         </div>
 
                         <div style={{ marginBottom: "1rem" }}>
-                            <label>Motivo</label>
+                            <label style={{ display: "block", marginBottom: "4px", fontWeight: 600 }}>Motivo</label>
                             <textarea
                                 value={motivo}
-                                onChange={e => setMotivo(e.target.value)}
+                                onChange={(e) => setMotivo(e.target.value)}
                                 rows={3}
-                                style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #ccc" }}
-                                placeholder="Describe el motivo de tu falta"
+                                placeholder="Explica el motivo de tu inasistencia..."
+                                style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc", resize: "vertical" }}
                             />
                         </div>
 
-                        {error && <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>}
-                        {enviado && <div style={{ color: "green", marginBottom: "1rem" }}>✓ Solicitud enviada correctamente.</div>}
+                        {error && (
+                            <div style={{ color: "#dc2626", fontSize: "13px", marginBottom: "1rem" }}>
+                                ❌ {error}
+                            </div>
+                        )}
+                        {enviado && (
+                            <div style={{ color: "#16a34a", fontSize: "13px", marginBottom: "1rem" }}>
+                                ✓ Solicitud enviada correctamente. El docente la revisará.
+                            </div>
+                        )}
 
                         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                            <Btn onClick={handleSubmit} color="#b45309">Enviar solicitud</Btn>
+                            <Btn onClick={handleSubmit} disabled={cargando} color="#b45309">
+                                {cargando ? "Enviando..." : "📨 Enviar solicitud"}
+                            </Btn>
                         </div>
                     </>
                 )}

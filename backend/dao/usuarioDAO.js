@@ -73,29 +73,21 @@ class UsuarioDAO {
 
     // Crear usuario
     async create(data) {
-        const { usuario, contrasena, nombre, rol } = data;
-        const pool = await getConnection();
-        
-        // Verificar si ya existe
-        const existe = await this.getByUsuario(usuario);
-        if (existe) {
-            throw new Error('El nombre de usuario ya existe');
-        }
-        
-        const result = await pool.request()
-            .input('usuario', sql.VarChar, usuario)
-            .input('contrasena', sql.VarChar, contrasena)
-            .input('nombre', sql.VarChar, nombre)
-            .input('rol', sql.VarChar, rol)
-            .input('estado', sql.VarChar, 'Activo')
-            .query(`
-                INSERT INTO TBL_USUARIO (usuario, contrasena, nombre, rol, estado)
-                VALUES (@usuario, @contrasena, @nombre, @rol, @estado);
-                SELECT SCOPE_IDENTITY() AS id;
-            `);
-        
-        return { id: result.recordset[0].id, usuario, nombre, rol };
-    }
+    const { usuario, contrasena, nombre, rol } = data;
+    const pool = await getConnection();
+    const result = await pool.request()
+        .input('usuario', sql.VarChar, usuario)
+        .input('contrasena', sql.VarChar, contrasena)
+        .input('nombre', sql.VarChar, nombre)
+        .input('rol', sql.VarChar, rol)
+        .input('estado', sql.VarChar, 'Activo')
+        .query(`
+            INSERT INTO TBL_USUARIO (usuario, contrasena, nombre, rol, estado)
+            VALUES (@usuario, @contrasena, @nombre, @rol, @estado);
+            SELECT SCOPE_IDENTITY() AS id;
+        `);
+    return { id: result.recordset[0].id, usuario, nombre, rol };
+}
 
     // Actualizar usuario
     async update(id, data) {

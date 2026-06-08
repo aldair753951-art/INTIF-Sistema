@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { exportToExcel } from '../utils/exportUtils';
+import { Card, Btn } from './index';
 
 export default function Reportes() {
     const [tab, setTab] = useState("asistencia");
@@ -82,10 +84,58 @@ export default function Reportes() {
         };
     });
 
+    // Obtener los datos a exportar según la pestaña activa
+    const getExportData = () => {
+        if (tab === "asistencia") {
+            return reporteAsistencia.map(a => ({
+                Alumno: a.nombre,
+                Código: a.codigo,
+                Programa: a.programa || '',
+                'Total Clases': a.total_clases,
+                Asistencias: a.asistencias,
+                Faltas: a.faltas,
+                Tardanzas: a.tardanzas || 0,
+                'Porcentaje %': a.porcentaje
+            }));
+        } else if (tab === "matriculas") {
+            return reporteMatriculas.map(m => ({
+                Alumno: m.alumno,
+                Código: m.codigo,
+                Curso: m.curso,
+                Fecha: m.fecha,
+                Estado: m.estado
+            }));
+        } else {
+            return reporteCursos.map(c => ({
+                Curso: c.nombre,
+                Docente: c.docente,
+                Horario: c.horario,
+                Días: c.dias,
+                Capacidad: c.capacidad,
+                'Alumnos Matriculados': c.alumnos
+            }));
+        }
+    };
+
+    const handleExport = () => {
+        const data = getExportData();
+        if (data.length === 0) {
+            alert('No hay datos para exportar en esta sección.');
+            return;
+        }
+        const filename = `Reporte_${tab}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}`;
+        exportToExcel(data, filename, tab.charAt(0).toUpperCase() + tab.slice(1));
+    };
+
     return (
         <div style={{ padding: "2rem" }}>
-            <h2 style={{ margin: "0 0 0.5rem", fontSize: 22, color: "#1e293b" }}>📊 Reportes</h2>
-            <p style={{ marginBottom: "1.5rem", fontSize: 13, color: "#64748b" }}>Consulta y exporta reportes</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                    <h2 style={{ margin: "0 0 0.5rem", fontSize: 22, color: "#1e293b" }}>📊 Reportes</h2>
+                    <p style={{ marginBottom: 0, fontSize: 13, color: "#64748b" }}>Consulta y exporta reportes</p>
+                </div>
+                <Btn onClick={handleExport} color="#0f766e">📊 Exportar a Excel</Btn>
+            </div>
 
             {/* Tabs */}
             <div style={{ display: "flex", gap: 4, marginBottom: "1.5rem", background: "#f1f5f9", borderRadius: 10, padding: 4 }}>

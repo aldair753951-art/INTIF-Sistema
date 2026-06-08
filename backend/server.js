@@ -13,6 +13,18 @@ const matriculaRoutes = require('./routes/matriculaRoutes');
 const app = express();
 const PORT = 5001;
 
+const morgan = require('morgan');
+const logger = require('./utils/logger');
+
+const solicitudRoutes = require('./routes/solicitudRoutes');
+app.use('/api/solicitudes', solicitudRoutes);
+
+// Usar Morgan con un stream que escriba en Winston
+const stream = {
+    write: (message) => logger.info(message.trim())
+};
+app.use(morgan('combined', { stream }));
+
 // Middlewares
 app.use(express.json());
 app.use(cors());
